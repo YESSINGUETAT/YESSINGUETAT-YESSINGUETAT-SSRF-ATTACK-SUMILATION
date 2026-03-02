@@ -20,11 +20,11 @@
         <div class="bg-slate-900 text-white p-6 border-b border-slate-800">
             <h1 class="text-2xl font-bold flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Laboratoire SSRF (Server-Side Request Forgery)
+                Laboratoire SSRF : Upload d'Avatar par URL
             </h1>
-            <p class="text-slate-400 mt-2 text-sm">Testez comment un serveur gère les requêtes sortantes lorsqu'il est vulnérable ou sécurisé.</p>
+            <p class="text-slate-400 mt-2 text-sm">Testez comment une fonctionnalité "Importer une image depuis une URL" peut être exploitée pour voler des données internes.</p>
         </div>
 
         <div class="p-6 md:p-8 grid md:grid-cols-2 gap-8">
@@ -32,19 +32,13 @@
             <!-- Controls Section -->
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 mb-2">1. Choisissez un vecteur d'attaque</label>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">1. Choisissez l'URL de l'image</label>
                     <div class="grid grid-cols-1 gap-2">
-                        <button onclick="fillUrl('https://api.github.com/users/octocat')" class="text-left px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition-colors">
-                            🌐 Site externe (Légitime)
+                        <button onclick="fillUrl('https://example.com/avatar_legitime.png')" class="text-left px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition-colors">
+                            ✅ Image Légitime (URL publique)
                         </button>
-                        <button onclick="fillUrl('http://127.0.0.1/admin/database')" class="text-left px-4 py-2 text-sm bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors">
-                            🏠 Interface d'administration locale
-                        </button>
-                        <button onclick="fillUrl('http://169.254.169.254/latest/meta-data/iam/security-credentials/')" class="text-left px-4 py-2 text-sm bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 rounded-lg transition-colors">
-                            ☁️ Métadonnées Cloud (AWS/GCP)
-                        </button>
-                        <button onclick="fillUrl('file:///etc/passwd')" class="text-left px-4 py-2 text-sm bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg transition-colors">
-                            📁 Lecture de fichier local
+                        <button onclick="fillUrl('http://192.168.1.100/api/internal/export_users?.jpg')" class="text-left px-4 py-2 text-sm bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg transition-colors border-dashed">
+                            🚨 Attaque SSRF (API interne déguisée avec ?.jpg)
                         </button>
                     </div>
                 </div>
@@ -113,40 +107,20 @@
         // --- MOCK BACKENDS --- //
 
         function simulateVulnerableBackend(url, output) {
-            // Le serveur vulnérable prend l'URL et l'exécute aveuglément.
-            if (url.includes('127.0.0.1') || url.includes('localhost')) {
-                output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n\n`;
-                output.innerHTML += `<span class="text-white">{
-  "status": "success",
-  "app": "Internal Admin Panel",
-  "db_credentials": {
-    "user": "root",
-    "password": "super_secret_db_password_123!"
-  }
-}</span>`;
-            } 
-            else if (url.includes('169.254.169.254')) {
-                output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n\n`;
-                output.innerHTML += `<span class="text-white">{"AccessKeyId":"AKIAIOSFODNN7EXAMPLE",
-"SecretAccessKey":"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-"Token":"IQoJb3JpZ2luX2VjEJv...",
-"Expiration":"2026-03-03T14:00:00Z"}</span>`;
-            }
-            else if (url.startsWith('file://')) {
-                output.innerHTML += `<span class="text-emerald-400">FILE SYSTEM ACCESSED</span>\n\n`;
-                output.innerHTML += `<span class="text-white">root:x:0:0:root:/root:/bin/bash
-daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
-bin:x:2:2:bin:/bin:/usr/sbin/nologin
-sys:x:3:3:sys:/dev:/usr/sbin/nologin
-www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin</span>`;
-            }
-            else if (url.startsWith('gopher://') || url.startsWith('dict://')) {
-                output.innerHTML += `<span class="text-emerald-400">GOPHER PROTOCOL EXECUTED</span>\n\n`;
-                output.innerHTML += `<span class="text-white">[+] Payload envoyé au service interne (ex: Redis) avec succès.</span>`;
+            // Le serveur vulnérable se contente de télécharger l'URL et de l'enregistrer.
+            // Il se fait berner par le fait que l'URL semble demander une ressource image.
+            if (url.includes('export_users') || url.includes('192.168.1')) {
+                output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n`;
+                output.innerHTML += `<span class="text-amber-400">[Module d'Upload] Fichier téléchargé avec succès !</span>\n`;
+                output.innerHTML += `<span class="text-amber-400">[Module d'Upload] Sauvegardé sous /uploads/avatars/user_99.jpg</span>\n\n`;
+                output.innerHTML += `<span class="text-slate-400">--- Contenu du fichier "image" (affiché par l'attaquant) ---</span>\n`;
+                output.innerHTML += `<span class="text-white">[{ "id": 1, "username": "admin", "password_hash": "$2b$12$Eix..." }, 
+ { "id": 2, "username": "ceo", "password_hash": "$2b$12$Oix..." }]</span>`;
             }
             else {
-                output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n\n`;
-                output.innerHTML += `<span class="text-slate-400">&lt;html&gt;Contenu public de la page...&lt;/html&gt;</span>`;
+                output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n`;
+                output.innerHTML += `<span class="text-amber-400">[Module d'Upload] Fichier image téléchargé et sauvegardé.</span>\n\n`;
+                output.innerHTML += `<span class="text-slate-400">[Affichage de l'image binaire valide]</span>`;
             }
         }
 
@@ -173,7 +147,7 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin</span>`;
                 // Si tout passe, on effectue la requête
                 output.innerHTML += `<span class="text-emerald-400">Validation de sécurité réussie.</span>\n`;
                 output.innerHTML += `<span class="text-emerald-400">HTTP/1.1 200 OK</span>\n\n`;
-                output.innerHTML += `<span class="text-slate-400">&lt;html&gt;Contenu public de la page...&lt;/html&gt;</span>`;
+                output.innerHTML += `<span class="text-slate-400">[Affichage de l'image binaire valide]</span>`;
 
             } catch (error) {
                 // En mode sécurisé, la requête échoue explicitement avant même d'être envoyée sur le réseau
@@ -183,7 +157,7 @@ www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin</span>`;
         }
 
         // Initialize with a default URL
-        fillUrl('http://127.0.0.1/admin/database');
+        fillUrl('http://192.168.1.100/api/internal/export_users?.jpg');
     </script>
 </body>
 </html>
